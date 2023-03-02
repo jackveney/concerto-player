@@ -1,38 +1,20 @@
 #!/bin/sh -e
 
-# set up variables so that config prompts are not displayed
-export LC_ALL="C"
-export LANGUAGE="C"
-export LANG="C"
-export DEBIAN_FRONTEND=noninteractive
-export DEBCONF_NONINTERACTIVE_SEEN=true
-
-case `dpkg --print-architecture` in
-i386)
-	KERNEL=linux-image-686-pae
-	;;
-amd64)
-	KERNEL=linux-image-amd64
-	;;
-*)
-	echo "we don't support this architecture"
-	exit 1
-	;;
-esac
 
 # install packages we need (build-essential is temporary)
 apt-get -y install xserver-xorg xserver-xorg-video-all \
 	chromium unclutter ifplugd xinit blackbox \
-	ruby1.9.1-full build-essential \
-	vim screen git-core ntpdate openssh-server \
-	firmware-linux-nonfree
+	rbenv ruby-dev build-essential \
+	nano screen git-core ntpdate openssh-server sddm
+	
+rbenv install 1.9.1-p431
 
 # and rubygems we need
 #gem install bandshell
 cat > /tmp/install_bandshell.sh <<EOF
 #!/bin/sh -e
 cd /tmp
-git clone git://github.com/concerto/bandshell.git
+git clone https://github.com/concerto/bandshell.git
 cd bandshell
 gem build bandshell.gemspec
 gem install *.gem
@@ -46,23 +28,8 @@ chmod +x /tmp/install_bandshell.sh
 apt-get -y purge build-essential
 apt-get -y autoremove
 
-# let's get our kernel from backports... wheezy's 3.2.0 kernels don't
-# seem to support (U)EFI booting very well.
-cat >> /etc/apt/sources.list << 'EOF'
-deb http://http.debian.net/debian wheezy-backports main
-EOF
-
-apt-get update
-apt-get -y -t wheezy-backports install ${KERNEL}
-
-# install live-boot so we get an initrd built for us
-apt-get -y install live-boot live-boot-initramfs-tools 
-
 # clean up apt caches
 apt-get -y clean
-
-# set up hostname
-echo concerto-player > /etc/hostname
 
 # create a user account that, when logged in,
 # will start the X server and the player
@@ -76,10 +43,6 @@ if [ -z $URL ]; then
 	URL=http://localhost:4567/screen
 fi
 
-# add custom xrandr commands to this file
-if [ -x /lib/live/mount/medium/xrandr.sh ]; then
-        /lib/live/mount/medium/xrandr.sh
-fi
 
 ROTATE=`cat /proc/cmdline | perl -ne 'print "$1\n" if /concerto.rotate=(\S+)/'`
 if [ -n $ROTATE ]; then
@@ -92,8 +55,6 @@ if [ -n $MAC_DETECT ]; then
 	URL=${URL}?mac=$MAC
 fi
 
-# start window manager
-blackbox &
 
 # hide the mouse pointer
 unclutter &
@@ -109,126 +70,30 @@ do
 done
 
 # run the browser (if it crashes or dies, the X session should end)
-chromium --disable-translate --disable-infobars --no-first-run --kiosk $URL
+/usr/bin/chromium-browser --noerrdialogs --disable-translate --disable-infobars --no-first-run --kiosk $URL
 EOF
 
-# modify inittab so we auto-login at boot as concerto
-sed -i -e 's/getty 38400 tty2/getty -a concerto tty2/' /etc/inittab
+mkdir -p /etc/sddm.conf.d
 
-# create rc.local file to start bandshell
-cat > /etc/rc.local << EOF
-#!/bin/sh -e
-/usr/local/bin/bandshelld start
+cat > /etc/sddm.conf.d/concerto << EOF
+[Autologin]
+User=concerto
+Session=blackbox.desktop
+Relogin=false
 EOF
 
-# create init script to preload bandshell network config
-cat > /etc/init.d/concerto-live << "EOF"
-#!/bin/sh
-### BEGIN INIT INFO
-# Provides:		concerto-live
-# Required-Start:	$local_fs
-# Required-Stop:	$local_fs
-# X-Start-Before:	$network
-# Default-Start:	S
-# Default-Stop:		0 6
-# Short-Description:	Live system configuration for Concerto
-# Description:		Live system configuration for Concerto
-### END INIT INFO
+systemctl enable sddm
 
-. /lib/lsb/init-functions
+# create systemctl file to start bandshell
+cat > /etc/systemd/system/bandshell.service << EOF
+[Unit]
+Description= bandshell for concerto
 
-MOUNTPOINT=/lib/live/mount/medium
-MEDIUM_PATH_DIR=/etc/concerto
-MEDIUM_PATH_FILE=medium_path
+[Service]
+ExecStart=/bin/bash /usr/local/bin/bandshelld start
 
-case "$1" in
-start)
-	log_action_begin_msg "Configuring Concerto Player"
-	# try to remount boot medium as read-write
-	# we don't care if this fails, the bandshell code will figure it out
-	mount -o remount,rw,sync $MOUNTPOINT || true
-
-	# create file indicating where mountpoint is
-	mkdir -p $MEDIUM_PATH_DIR
-	echo -n $MOUNTPOINT > $MEDIUM_PATH_DIR/$MEDIUM_PATH_FILE
-
-	# generate /etc/network/interfaces from our configs
-	if [ -x /usr/local/bin/concerto_netsetup ]; then
-		/usr/local/bin/concerto_netsetup
-	elif [ -x /usr/local/bin/bandshelld_boot ]; then
-		/usr/local/bin/bandshelld_boot
-	else
-		echo "neither concerto_netsetup nor bandshelld_boot found!"
-		echo "something is wrong with your build process"
-	fi
-	log_action_end_msg $?
-	;;
-stop)
-	;;
-esac
+[Install]
+WantedBy= multi-user.target
 EOF
 
-chmod +x /etc/init.d/concerto-live
-update-rc.d concerto-live defaults
-
-# create init script to load ssh keys from boot medium
-cat > /etc/init.d/ssh-keys << "EOF"
-#!/bin/sh -e
-### BEGIN INIT INFO
-# Provides:		ssh-keys
-# Required-Start:	$local_fs
-# Required-Stop:	$local_fs
-# X-Start-Before:	sshd
-# Default-Start:	2 3 4 5
-# Default-Stop:
-# Short-Description:	Load SSH keys from boot medium
-### END INIT INFO
-
-. /lib/lsb/init-functions
-
-MOUNTPOINT=`cat /etc/concerto/medium_path`
-
-case "$1" in
-start)
-	log_action_begin_msg "Configuring SSH host keys"
-
-	# make sure any keys that were part of the live image are gone
-	rm -f /etc/ssh/ssh_host_*
-
-	if [ -f $MOUNTPOINT/ssh_keys.tar ]; then
-		# if keys are found stored on the boot medium, load them
-		# IMPORTANT NOTE: unless you are really sure you know what
-		# you are doing, you should NOT put an ssh_keys.tar file on
-		# the boot medium. Instead, let this script generate it on
-		# first boot. This way, a unique set of keys will be generated
-		# for each box.
-		tar -xvf $MOUNTPOINT/ssh_keys.tar -C /etc/ssh
-	else
-		# generate the necessary keys
-		ssh-keygen -A
-
-		# try to save keys to boot medium
-		# ignore errors from this in case medium isn't writable
-		(
-			cd /etc/ssh;
-			tar -cvf $MOUNTPOINT/ssh_keys.tar ssh_host_*
-		) || true
-	fi
-
-	log_action_end_msg $?
-	;;
-
-stop)
-	;;
-esac
-EOF
-chmod +x /etc/init.d/ssh-keys
-insserv ssh-keys
-
-# clean up apt package cache
-apt-get clean
-
-# set passwords for the 'root' and 'concerto' accounts.
-# passwords are stored in passwords.txt
-chpasswd < passwords.txt
-
+systemctl enable bandshell.service
