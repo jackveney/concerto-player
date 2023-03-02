@@ -8,6 +8,7 @@ apt-get -y install xserver-xorg xserver-xorg-video-all \
 	nano screen git-core ntpdate openssh-server sddm
 	
 rbenv install 1.9.1-p431
+rbenv global 1.9.1-p431
 
 # and rubygems we need
 #gem install bandshell
