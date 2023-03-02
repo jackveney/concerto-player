@@ -1,14 +1,10 @@
-cat > /home/concerto/.xinitrc << "EOF"
+cat > /home/concerto/.xsessionrc << "EOF"
 #!/bin/sh
 URL=`cat /proc/cmdline | perl -ne 'print "$1\n" if /concerto.url=(\S+)/'`
 if [ -z $URL ]; then
 	URL=http://localhost:4567/screen
 fi
 
-# add custom xrandr commands to this file
-if [ -x /lib/live/mount/medium/xrandr.sh ]; then
-        /lib/live/mount/medium/xrandr.sh
-fi
 
 ROTATE=`cat /proc/cmdline | perl -ne 'print "$1\n" if /concerto.rotate=(\S+)/'`
 if [ -n $ROTATE ]; then
@@ -21,8 +17,6 @@ if [ -n $MAC_DETECT ]; then
 	URL=${URL}?mac=$MAC
 fi
 
-# start window manager
-blackbox &
 
 # hide the mouse pointer
 unclutter &
@@ -38,5 +32,5 @@ do
 done
 
 # run the browser (if it crashes or dies, the X session should end)
-chromium --disable-translate --disable-infobars --no-first-run --kiosk $URL
+/usr/bin/chromium --noerrdialogs --disable-translate --disable-infobars --no-first-run --kiosk $URL
 EOF
