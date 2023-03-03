@@ -10,6 +10,12 @@ apt-get -y install xserver-xorg xserver-xorg-video-all \
 # clean up apt caches
 apt-get -y clean
 
+wget https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
+chmod +x setup-repos.sh
+./setup-repos.sh
+
+apt-get install webmin -y
+
 # create a user account that, when logged in,
 # will start the X server and the player
 useradd -m -s `which xinit` concerto
