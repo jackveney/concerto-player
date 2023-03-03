@@ -16,7 +16,6 @@ apt-get install webmin -y
 # will start the X server and the player
 useradd -m -s `which xinit` concerto
 
-EOF
 
 # create a .xinitrc that will start fullscreen chromium
 cat > /home/concerto/.xsessionrc << "EOF"
