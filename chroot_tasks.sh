@@ -21,7 +21,7 @@ useradd -m -s `which xinit` concerto
 
 
 # create a .xinitrc that will start fullscreen chromium
-cat > /home/concerto/.xsessionrc << "EOF"
+cat > /home/concerto/kiosk.sh << "EOF"
 #!/bin/sh
 
 #Set the URL for chrome to open
