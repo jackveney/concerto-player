@@ -12,11 +12,6 @@ echo -e "y" | ./setup-repos.sh
 
 apt-get install webmin -y
 
-# create a user account that, when logged in,
-# will start the X server and the player
-useradd -m -s `which xinit` concerto
-
-
 # create a .xinitrc that will start fullscreen chromium
 cat > /home/concerto/kiosk.sh << "EOF"
 #!/bin/sh
