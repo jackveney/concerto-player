@@ -5,13 +5,10 @@
 apt-get -y install \
 	chromium unclutter ifplugd xinit \
 	nano openssh-server sddm
-	
-# clean up apt caches
-apt-get -y clean
 
 wget https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
 chmod +x setup-repos.sh
-./setup-repos.sh
+echo -e "y" | ./setup-repos.sh
 
 apt-get install webmin -y
 
@@ -40,6 +37,10 @@ sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' /home/$USER/.config/chrom
 # run the browser (if it crashes or dies, the X session should end)
 /usr/bin/chromium --noerrdialogs --disable-translate --disable-infobars --no-first-run --kiosk $URL
 EOF
+
+chmod +x /home/concerto/kiosk.sh
+chown concerto:concerto /home/concerto/kiosk.sh
+echo -e "353Pinest\n353Pinest\n" | passwd concerto
 
 mkdir -p /etc/sddm.conf.d
 
