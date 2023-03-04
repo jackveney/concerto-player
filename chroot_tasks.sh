@@ -2,8 +2,8 @@
 
 
 # install packages we need (build-essential is temporary)
-apt-get -y install xserver-xorg xserver-xorg-video-all \
-	chromium unclutter ifplugd xinit blackbox \
+apt-get -y install \
+	chromium unclutter ifplugd xinit \
 	network-manager \
 	nano screen ntpdate openssh-server sddm
 	
@@ -43,7 +43,7 @@ mkdir -p /etc/sddm.conf.d
 cat > /etc/sddm.conf.d/concerto << EOF
 [Autologin]
 User=concerto
-Session=blackbox.desktop
+Session=cinnamon.desktop
 Relogin=false
 EOF
 
