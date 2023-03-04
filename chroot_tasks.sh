@@ -4,7 +4,7 @@
 # install packages we need (build-essential is temporary)
 apt-get -y install \
 	chromium unclutter ifplugd xinit \
-	nano screen ntpdate openssh-server sddm
+	nano openssh-server sddm
 	
 # clean up apt caches
 apt-get -y clean
