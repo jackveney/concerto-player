@@ -8,9 +8,11 @@ apt-get -y install \
 
 wget https://raw.githubusercontent.com/webmin/webmin/master/setup-repos.sh
 chmod +x setup-repos.sh
-echo -e "y" | ./setup-repos.sh
+./setup-repos.sh
 
 apt-get install webmin -y
+
+useradd concerto
 
 # create a .xinitrc that will start fullscreen chromium
 cat > /home/concerto/kiosk.sh << "EOF"
@@ -35,7 +37,7 @@ EOF
 
 chmod +x /home/concerto/kiosk.sh
 chown concerto:concerto /home/concerto/kiosk.sh
-echo -e "353Pinest\n353Pinest\n" | passwd concerto
+passwd concerto
 
 mkdir -p /etc/sddm.conf.d
 
